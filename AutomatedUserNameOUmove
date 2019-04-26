@@ -1,0 +1,36 @@
+#Untested
+#Probably doesn't work
+
+function lookup-ou {
+     
+"Looking up location of " + $username + " in Active Directory..."
+$global:ldaperror = $false
+$ldapconn = "LDAP://DCNAME.corp.zulily.com:389/dc=zulily,dc=zulily,dc=com"
+$entry = New-Object System.DirectoryServices.DirectoryEntry($ldapconn,$cred.username,$ldp)
+$LDAPfilter = "(&(objectCategory=person)(objectClass=user)(samaccountname=$username))"
+$directorySearcher = New-Object System.DirectoryServices.DirectorySearcher($entry,$LDAPfilter)
+$results = $directorySearcher.FindAll()
+if ($results.path -eq $null) {$global:ldaperror = $true; return}
+$pathparse = ($results.path).split(",=")
+$global:programname = $pathparse.item(5)
+
+write-host -ForegroundColor Yellow "User OU: " $programname
+
+"User is " + $username + " " + (get-date) | out-file -FilePath $logfile -Append
+"Program is " + $programname + " " + (get-date) | out-file -FilePath $logfile -Append
+
+"Checking for AD computer account $env:computername..."
+$LDAPfilter = "(&(objectcategory=computer)(name=$env:COMPUTERNAME))"
+$directorySearcher = New-Object System.DirectoryServices.DirectorySearcher($entry,$LDAPfilter)
+$results = $directorySearcher.FindAll() 
+$pathparse = ($results.path).split(",=")
+$global:computerou = $pathparse.item(5)
+write-host -ForegroundColor Yellow "Computer OU: $computerou"
+"Computer OU is " + $computerou + " " + (get-date) | out-file -FilePath $logfile -Append
+}
+
+function join-ad {
+$joinoupath = "OU=Workstations,OU=" + $joinou.trim() + ",DC=corp,DC=corp,DC=corp"
+"Adding computer to the " + $joinou + " OU in ZULILYCORP domain..."
+while (((Get-LocalGroupMember -Name Administrators -ErrorAction SilentlyContinue)|Where-Object Name -Like "*CORP*").count -eq 0) {Add-Computer -ErrorAction SilentlyContinue -domainname corp.zulily.com -OUPath $joinoupath -cred $cred}
+"Domain joined " + (get-date) | out-file -FilePath $logfile -Append
