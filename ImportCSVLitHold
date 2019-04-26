@@ -1,0 +1,5 @@
+$Users = Get-Content "C:\scripts\493lithold.csv"
+foreach ($User in $Users)
+{
+	Get-Mailbox -Identity $User | fl *LitigationHoldEnabled*
+}
